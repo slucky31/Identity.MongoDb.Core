@@ -1,0 +1,53 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Identity.MongoDb.Core", "src\Identity.MongoDb.Core.csproj", "{AD94BB57-CE0E-413F-B13A-E4E429382CF9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorApp", "..\BlazorApp\BlazorApp.csproj", "{AC35A12C-E23B-40BE-8D5F-5EEF46DB41FA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1FB55837-11E7-4114-88FE-F91DDBE0EAD6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{6C975739-A17F-4795-BE06-310DCE90EF4A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.AspNetCore.Identity.EntityFrameworkCore.Test", "test\Microsoft.AspNetCore.Identity.EntityFrameworkCore.Test.csproj", "{3069AE64-9568-4B08-9621-6D002217FDD8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BACADBAD-3BF3-4A6F-BA40-15EF74494465}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		Directory.Build.props = Directory.Build.props
+		Directory.Packages.props = Directory.Packages.props
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AD94BB57-CE0E-413F-B13A-E4E429382CF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD94BB57-CE0E-413F-B13A-E4E429382CF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD94BB57-CE0E-413F-B13A-E4E429382CF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD94BB57-CE0E-413F-B13A-E4E429382CF9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC35A12C-E23B-40BE-8D5F-5EEF46DB41FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC35A12C-E23B-40BE-8D5F-5EEF46DB41FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC35A12C-E23B-40BE-8D5F-5EEF46DB41FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC35A12C-E23B-40BE-8D5F-5EEF46DB41FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3069AE64-9568-4B08-9621-6D002217FDD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3069AE64-9568-4B08-9621-6D002217FDD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3069AE64-9568-4B08-9621-6D002217FDD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3069AE64-9568-4B08-9621-6D002217FDD8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AD94BB57-CE0E-413F-B13A-E4E429382CF9} = {1FB55837-11E7-4114-88FE-F91DDBE0EAD6}
+		{AC35A12C-E23B-40BE-8D5F-5EEF46DB41FA} = {1FB55837-11E7-4114-88FE-F91DDBE0EAD6}
+		{3069AE64-9568-4B08-9621-6D002217FDD8} = {6C975739-A17F-4795-BE06-310DCE90EF4A}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0943C535-8CAD-4EBA-9BE0-C03F465592D3}
+	EndGlobalSection
+EndGlobal
