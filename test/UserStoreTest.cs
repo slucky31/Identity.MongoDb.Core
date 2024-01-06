@@ -3,15 +3,17 @@
 
 using System.Globalization;
 using System.Linq.Expressions;
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
 using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
-public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, IdentityRole>, IClassFixture<ScratchDatabaseFixture>
+public class UserStoreTest : IdentitySpecificationTestBase<MongoIdentityUser, MongoIdentityRole>, IClassFixture<ScratchDatabaseFixture>
 {
     private readonly ScratchDatabaseFixture _fixture;
 
@@ -32,7 +34,7 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         using (var db = CreateContext())
         {
             var guid = Guid.NewGuid().ToString();
-            db.Users.Add(new IdentityUser { Id = guid, UserName = guid });
+            db.Users.Add(new MongoIdentityUser { Id = ObjectId.GenerateNewId(), UserName = guid });
             db.SaveChanges();
             Assert.True(db.Users.Any(u => u.UserName == guid));
             Assert.NotNull(db.Users.FirstOrDefault(u => u.UserName == guid));
@@ -53,12 +55,12 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
 
     protected override void AddUserStore(IServiceCollection services, object context = null)
     {
-        services.AddSingleton<IUserStore<IdentityUser>>(new UserStore<IdentityUser, IdentityRole, IdentityDbContext>((IdentityDbContext)context));
+        services.AddSingleton<IUserStore<MongoIdentityUser>>(new UserStore<MongoIdentityUser, MongoIdentityRole, IdentityDbContext>((IdentityDbContext)context));
     }
 
     protected override void AddRoleStore(IServiceCollection services, object context = null)
     {
-        services.AddSingleton<IRoleStore<IdentityRole>>(new RoleStore<IdentityRole, IdentityDbContext>((IdentityDbContext)context));
+        services.AddSingleton<IRoleStore<MongoIdentityRole>>(new RoleStore<MongoIdentityRole, IdentityDbContext>((IdentityDbContext)context));
     }
 
     [Fact]
@@ -126,11 +128,11 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         await Assert.ThrowsAsync<ArgumentNullException>("user", async () => await store.GetSecurityStampAsync(null));
         await Assert.ThrowsAsync<ArgumentNullException>("user",
             async () => await store.SetSecurityStampAsync(null, null));
-        await Assert.ThrowsAsync<ArgumentNullException>("login", async () => await store.AddLoginAsync(new IdentityUser("fake"), null));
+        await Assert.ThrowsAsync<ArgumentNullException>("login", async () => await store.AddLoginAsync(new MongoIdentityUser("fake"), null));
         await Assert.ThrowsAsync<ArgumentNullException>("claims",
-            async () => await store.AddClaimsAsync(new IdentityUser("fake"), null));
+            async () => await store.AddClaimsAsync(new MongoIdentityUser("fake"), null));
         await Assert.ThrowsAsync<ArgumentNullException>("claims",
-            async () => await store.RemoveClaimsAsync(new IdentityUser("fake"), null));
+            async () => await store.RemoveClaimsAsync(new MongoIdentityUser("fake"), null));
         await Assert.ThrowsAsync<ArgumentNullException>("user", async () => await store.GetEmailConfirmedAsync(null));
         await Assert.ThrowsAsync<ArgumentNullException>("user",
             async () => await store.SetEmailConfirmedAsync(null, true));
@@ -152,12 +154,12 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         await Assert.ThrowsAsync<ArgumentNullException>("user", async () => await store.SetLockoutEndDateAsync(null, new DateTimeOffset()));
         await Assert.ThrowsAsync<ArgumentNullException>("user", async () => await store.ResetAccessFailedCountAsync(null));
         await Assert.ThrowsAsync<ArgumentNullException>("user", async () => await store.IncrementAccessFailedCountAsync(null));
-        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.AddToRoleAsync(new IdentityUser("fake"), null));
-        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.RemoveFromRoleAsync(new IdentityUser("fake"), null));
-        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.IsInRoleAsync(new IdentityUser("fake"), null));
-        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.AddToRoleAsync(new IdentityUser("fake"), ""));
-        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.RemoveFromRoleAsync(new IdentityUser("fake"), ""));
-        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.IsInRoleAsync(new IdentityUser("fake"), ""));
+        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.AddToRoleAsync(new MongoIdentityUser("fake"), null));
+        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.RemoveFromRoleAsync(new MongoIdentityUser("fake"), null));
+        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.IsInRoleAsync(new MongoIdentityUser("fake"), null));
+        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.AddToRoleAsync(new MongoIdentityUser("fake"), ""));
+        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.RemoveFromRoleAsync(new MongoIdentityUser("fake"), ""));
+        await Assert.ThrowsAsync<ArgumentException>("normalizedRoleName", async () => await store.IsInRoleAsync(new MongoIdentityUser("fake"), ""));
     }
 
     [Fact]
@@ -165,7 +167,7 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
     {
         var manager = CreateManager();
         var guid = Guid.NewGuid().ToString();
-        var user = new IdentityUser { UserName = "New" + guid };
+        var user = new MongoIdentityUser { UserName = "New" + guid };
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(user));
         IdentityResultAssert.IsSuccess(await manager.DeleteAsync(user));
     }
@@ -174,9 +176,9 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
     public async Task TwoUsersSamePasswordDifferentHash()
     {
         var manager = CreateManager();
-        var userA = new IdentityUser(Guid.NewGuid().ToString());
+        var userA = new MongoIdentityUser(Guid.NewGuid().ToString());
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(userA, "password"));
-        var userB = new IdentityUser(Guid.NewGuid().ToString());
+        var userB = new MongoIdentityUser(Guid.NewGuid().ToString());
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(userB, "password"));
 
         Assert.NotEqual(userA.PasswordHash, userB.PasswordHash);
@@ -186,10 +188,10 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
     public async Task FindByEmailThrowsWithTwoUsersWithSameEmail()
     {
         var manager = CreateManager();
-        var userA = new IdentityUser(Guid.NewGuid().ToString());
+        var userA = new MongoIdentityUser(Guid.NewGuid().ToString());
         userA.Email = "dupe@dupe.com";
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(userA, "password"));
-        var userB = new IdentityUser(Guid.NewGuid().ToString());
+        var userB = new MongoIdentityUser(Guid.NewGuid().ToString());
         userB.Email = "dupe@dupe.com";
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(userB, "password"));
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await manager.FindByEmailAsync("dupe@dupe.com"));
@@ -209,7 +211,7 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
     [Fact]
     public async Task ConcurrentUpdatesWillFail()
     {
-        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.DatabaseName, _fixture.DatabaseName).Options;
+        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options;
         var user = CreateTestUser();
         using (var db = new IdentityDbContext(options))
         {
@@ -223,8 +225,8 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         {
             var manager1 = CreateManager(db);
             var manager2 = CreateManager(db2);
-            var user1 = await manager1.FindByIdAsync(user.Id);
-            var user2 = await manager2.FindByIdAsync(user.Id);
+            var user1 = await manager1.FindByIdAsync(user.Id.ToString());
+            var user2 = await manager2.FindByIdAsync(user.Id.ToString());
             Assert.NotNull(user1);
             Assert.NotNull(user2);
             Assert.NotSame(user1, user2);
@@ -233,14 +235,13 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
             IdentityResultAssert.IsSuccess(await manager1.UpdateAsync(user1));
             IdentityResultAssert.IsFailure(await manager2.UpdateAsync(user2), new IdentityErrorDescriber().ConcurrencyFailure());
 
-            db.Database.EnsureDeleted();
         }
     }
 
     [Fact]
     public async Task ConcurrentUpdatesWillFailWithDetachedUser()
     {
-        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.DatabaseName, _fixture.DatabaseName).Options;
+        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options;
         var user = CreateTestUser();
         using (var db = new IdentityDbContext(options))
         {
@@ -254,7 +255,7 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         {
             var manager1 = CreateManager(db);
             var manager2 = CreateManager(db2);
-            var user2 = await manager2.FindByIdAsync(user.Id);
+            var user2 = await manager2.FindByIdAsync(user.Id.ToString());
             Assert.NotNull(user2);
             Assert.NotSame(user, user2);
             user.UserName = Guid.NewGuid().ToString();
@@ -262,14 +263,13 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
             IdentityResultAssert.IsSuccess(await manager1.UpdateAsync(user));
             IdentityResultAssert.IsFailure(await manager2.UpdateAsync(user2), new IdentityErrorDescriber().ConcurrencyFailure());
 
-            db.Database.EnsureDeleted();
         }
     }
 
     [Fact]
     public async Task DeleteAModifiedUserWillFail()
     {
-        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.DatabaseName, _fixture.DatabaseName).Options;
+        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options;
         var user = CreateTestUser();
         using (var db = new IdentityDbContext(options))
         {
@@ -283,8 +283,8 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         {
             var manager1 = CreateManager(db);
             var manager2 = CreateManager(db2);
-            var user1 = await manager1.FindByIdAsync(user.Id);
-            var user2 = await manager2.FindByIdAsync(user.Id);
+            var user1 = await manager1.FindByIdAsync(user.Id.ToString());
+            var user2 = await manager2.FindByIdAsync(user.Id.ToString());
             Assert.NotNull(user1);
             Assert.NotNull(user2);
             Assert.NotSame(user1, user2);
@@ -292,15 +292,14 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
             IdentityResultAssert.IsSuccess(await manager1.UpdateAsync(user1));
             IdentityResultAssert.IsFailure(await manager2.DeleteAsync(user2), new IdentityErrorDescriber().ConcurrencyFailure());
 
-            db.Database.EnsureDeleted();
         }
     }
 
     [Fact]
     public async Task ConcurrentRoleUpdatesWillFail()
     {
-        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.DatabaseName, _fixture.DatabaseName).Options;
-        var role = new IdentityRole(Guid.NewGuid().ToString());
+        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options;
+        var role = new MongoIdentityRole(Guid.NewGuid().ToString());
         using (var db = new IdentityDbContext(options))
         {
             
@@ -313,8 +312,8 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         {
             var manager1 = CreateRoleManager(db);
             var manager2 = CreateRoleManager(db2);
-            var role1 = await manager1.FindByIdAsync(role.Id);
-            var role2 = await manager2.FindByIdAsync(role.Id);
+            var role1 = await manager1.FindByIdAsync(role.Id.ToString());
+            var role2 = await manager2.FindByIdAsync(role.Id.ToString());
             Assert.NotNull(role1);
             Assert.NotNull(role2);
             Assert.NotSame(role1, role2);
@@ -323,15 +322,14 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
             IdentityResultAssert.IsSuccess(await manager1.UpdateAsync(role1));
             IdentityResultAssert.IsFailure(await manager2.UpdateAsync(role2), new IdentityErrorDescriber().ConcurrencyFailure());
 
-            db.Database.EnsureDeleted();
         }
     }
 
     [Fact]
     public async Task ConcurrentRoleUpdatesWillFailWithDetachedRole()
     {
-        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.DatabaseName, _fixture.DatabaseName).Options;
-        var role = new IdentityRole(Guid.NewGuid().ToString());
+        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options;
+        var role = new MongoIdentityRole(Guid.NewGuid().ToString());
         using (var db = new IdentityDbContext(options))
         {
             
@@ -344,7 +342,7 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         {
             var manager1 = CreateRoleManager(db);
             var manager2 = CreateRoleManager(db2);
-            var role2 = await manager2.FindByIdAsync(role.Id);
+            var role2 = await manager2.FindByIdAsync(role.Id.ToString());
             Assert.NotNull(role);
             Assert.NotNull(role2);
             Assert.NotSame(role, role2);
@@ -353,15 +351,14 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
             IdentityResultAssert.IsSuccess(await manager1.UpdateAsync(role));
             IdentityResultAssert.IsFailure(await manager2.UpdateAsync(role2), new IdentityErrorDescriber().ConcurrencyFailure());
 
-            db.Database.EnsureDeleted();
         }
     }
 
     [Fact]
     public async Task DeleteAModifiedRoleWillFail()
     {
-        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.DatabaseName, _fixture.DatabaseName).Options;
-        var role = new IdentityRole(Guid.NewGuid().ToString());
+        var options = new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options;
+        var role = new MongoIdentityRole(Guid.NewGuid().ToString());
         using (var db = new IdentityDbContext(options))
         {
             
@@ -374,8 +371,8 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         {
             var manager1 = CreateRoleManager(db);
             var manager2 = CreateRoleManager(db2);
-            var role1 = await manager1.FindByIdAsync(role.Id);
-            var role2 = await manager2.FindByIdAsync(role.Id);
+            var role1 = await manager1.FindByIdAsync(role.Id.ToString());
+            var role2 = await manager2.FindByIdAsync(role.Id.ToString());
             Assert.NotNull(role1);
             Assert.NotNull(role2);
             Assert.NotSame(role1, role2);
@@ -383,14 +380,13 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
             IdentityResultAssert.IsSuccess(await manager1.UpdateAsync(role1));
             IdentityResultAssert.IsFailure(await manager2.DeleteAsync(role2), new IdentityErrorDescriber().ConcurrencyFailure());
 
-            db.Database.EnsureDeleted();
         }
     }
 
-    protected override IdentityUser CreateTestUser(string namePrefix = "", string email = "", string phoneNumber = "",
+    protected override MongoIdentityUser CreateTestUser(string namePrefix = "", string email = "", string phoneNumber = "",
         bool lockoutEnabled = false, DateTimeOffset? lockoutEnd = default(DateTimeOffset?), bool useNamePrefixAsUserName = false)
     {
-        return new IdentityUser
+        return new MongoIdentityUser
         {
             UserName = useNamePrefixAsUserName ? namePrefix : string.Format(CultureInfo.InvariantCulture, "{0}{1}", namePrefix, Guid.NewGuid()),
             Email = email,
@@ -400,26 +396,26 @@ public class UserStoreTest : IdentitySpecificationTestBase<IdentityUser, Identit
         };
     }
 
-    protected override IdentityRole CreateTestRole(string roleNamePrefix = "", bool useRoleNamePrefixAsRoleName = false)
+    protected override MongoIdentityRole CreateTestRole(string roleNamePrefix = "", bool useRoleNamePrefixAsRoleName = false)
     {
         var roleName = useRoleNamePrefixAsRoleName ? roleNamePrefix : string.Format(CultureInfo.InvariantCulture, "{0}{1}", roleNamePrefix, Guid.NewGuid());
-        return new IdentityRole(roleName);
+        return new MongoIdentityRole(roleName);
     }
 
-    protected override void SetUserPasswordHash(IdentityUser user, string hashedPassword)
+    protected override void SetUserPasswordHash(MongoIdentityUser user, string hashedPassword)
     {
         user.PasswordHash = hashedPassword;
     }
 
-    protected override Expression<Func<IdentityUser, bool>> UserNameEqualsPredicate(string userName) => u => u.UserName == userName;
+    protected override Expression<Func<MongoIdentityUser, bool>> UserNameEqualsPredicate(string userName) => u => u.UserName == userName;
 
-    protected override Expression<Func<IdentityRole, bool>> RoleNameEqualsPredicate(string roleName) => r => r.Name == roleName;
+    protected override Expression<Func<MongoIdentityRole, bool>> RoleNameEqualsPredicate(string roleName) => r => r.Name == roleName;
 
 #pragma warning disable CA1310 // Specify StringComparison for correctness
-    protected override Expression<Func<IdentityRole, bool>> RoleNameStartsWithPredicate(string roleName) => r => r.Name.StartsWith(roleName);
+    protected override Expression<Func<MongoIdentityRole, bool>> RoleNameStartsWithPredicate(string roleName) => r => r.Name.StartsWith(roleName);
 
-    protected override Expression<Func<IdentityUser, bool>> UserNameStartsWithPredicate(string userName) => u => u.UserName.StartsWith(userName);
+    protected override Expression<Func<MongoIdentityUser, bool>> UserNameStartsWithPredicate(string userName) => u => u.UserName.StartsWith(userName);
 #pragma warning restore CA1310 // Specify StringComparison for correctness
 }
 
-public class ApplicationUser : IdentityUser { }
+public class ApplicationUser : MongoIdentityUser { }

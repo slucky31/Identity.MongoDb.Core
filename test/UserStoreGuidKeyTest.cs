@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
-public class GuidUser : IdentityUser<Guid>
+public class GuidUser : MongoIdentityUser<Guid>
 {
     public GuidUser()
     {
@@ -18,7 +19,7 @@ public class GuidUser : IdentityUser<Guid>
     }
 }
 
-public class GuidRole : IdentityRole<Guid>
+public class GuidRole : MongoIdentityRole<Guid>
 {
     public GuidRole()
     {
@@ -27,11 +28,12 @@ public class GuidRole : IdentityRole<Guid>
     }
 }
 
+[CollectionDefinition("UserStoreGuidTest")]
 public class UserStoreGuidTest : SqlStoreTestBase<GuidUser, GuidRole, Guid>
 {
     public UserStoreGuidTest(ScratchDatabaseFixture fixture)
         : base(fixture)
-    {
+    {        
     }
 
     public class ApplicationUserStore : UserStore<GuidUser, GuidRole, TestDbContext, Guid>
@@ -78,13 +80,13 @@ public class UserStoreGuidTest : SqlStoreTestBase<GuidUser, GuidRole, Guid>
         services.AddLogging()
             .AddSingleton(new TestDbContext(new DbContextOptionsBuilder<TestDbContext>().Options));
         // This used to throw
-        var builder = services.AddIdentityCore<IdentityUser<Guid>>().AddRoles<IdentityRole<Guid>>().AddEntityFrameworkStores<TestDbContext>();
+        var builder = services.AddIdentityCore<MongoIdentityUser<Guid>>().AddRoles<MongoIdentityRole<Guid>>().AddEntityFrameworkStores<TestDbContext>();
 
         var sp = services.BuildServiceProvider();
         using (var csope = sp.CreateScope())
         {
-            Assert.NotNull(sp.GetRequiredService<UserManager<IdentityUser<Guid>>>());
-            Assert.NotNull(sp.GetRequiredService<RoleManager<IdentityRole<Guid>>>());
+            Assert.NotNull(sp.GetRequiredService<UserManager<MongoIdentityUser<Guid>>>());
+            Assert.NotNull(sp.GetRequiredService<RoleManager<MongoIdentityRole<Guid>>>());
         }
     }
 }

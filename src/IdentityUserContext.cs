@@ -3,12 +3,14 @@
 
 using System;
 using System.Linq;
+using Identity.MongoDb.Core.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
 
 namespace Identity.MongoDb.Core;
 
@@ -16,7 +18,7 @@ namespace Identity.MongoDb.Core;
 /// Base class for the Entity Framework database context used for identity.
 /// </summary>
 /// <typeparam name="TUser">The type of the user objects.</typeparam>
-public class IdentityUserContext<TUser> : IdentityUserContext<TUser, string> where TUser : IdentityUser
+public class IdentityUserContext<TUser> : IdentityUserContext<TUser, ObjectId> where TUser : MongoIdentityUser
 {
     /// <summary>
     /// Initializes a new instance of <see cref="IdentityUserContext{TUser}"/>.
@@ -36,7 +38,7 @@ public class IdentityUserContext<TUser> : IdentityUserContext<TUser, string> whe
 /// <typeparam name="TUser">The type of user objects.</typeparam>
 /// <typeparam name="TKey">The type of the primary key for users and roles.</typeparam>
 public class IdentityUserContext<TUser, TKey> : IdentityUserContext<TUser, TKey, IdentityUserClaim<TKey>, IdentityUserLogin<TKey>, IdentityUserToken<TKey>>
-    where TUser : IdentityUser<TKey>
+    where TUser : MongoIdentityUser<TKey>
     where TKey : IEquatable<TKey>
 {
     /// <summary>
@@ -60,7 +62,7 @@ public class IdentityUserContext<TUser, TKey> : IdentityUserContext<TUser, TKey,
 /// <typeparam name="TUserLogin">The type of the user login object.</typeparam>
 /// <typeparam name="TUserToken">The type of the user token object.</typeparam>
 public abstract class IdentityUserContext<TUser, TKey, TUserClaim, TUserLogin, TUserToken> : DbContext
-    where TUser : IdentityUser<TKey>
+    where TUser : MongoIdentityUser<TKey>
     where TKey : IEquatable<TKey>
     where TUserClaim : IdentityUserClaim<TKey>
     where TUserLogin : IdentityUserLogin<TKey>
@@ -82,26 +84,6 @@ public abstract class IdentityUserContext<TUser, TKey, TUserClaim, TUserLogin, T
     /// </summary>
     public virtual DbSet<TUser> Users { get; set; } = default!;
 
-    /// <summary>
-    /// Gets or sets the <see cref="DbSet{TEntity}"/> of User claims.
-    /// </summary>
-    public virtual DbSet<TUserClaim> UserClaims { get; set; } = default!;
-
-    /// <summary>
-    /// Gets or sets the <see cref="DbSet{TEntity}"/> of User logins.
-    /// </summary>
-    public virtual DbSet<TUserLogin> UserLogins { get; set; } = default!;
-
-    /// <summary>
-    /// Gets or sets the <see cref="DbSet{TEntity}"/> of User tokens.
-    /// </summary>
-    public virtual DbSet<TUserToken> UserTokens { get; set; } = default!;
-
-    /// <summary>
-    /// Gets the schema version used for versioning.
-    /// </summary>
-    protected virtual Version SchemaVersion { get => GetStoreOptions()?.SchemaVersion ?? IdentitySchemaVersions.Version1; }
-
     private StoreOptions? GetStoreOptions() => this.GetService<IDbContextOptions>()
                         .Extensions.OfType<CoreOptionsExtension>()
                         .FirstOrDefault()?.ApplicationServiceProvider
@@ -122,48 +104,8 @@ public abstract class IdentityUserContext<TUser, TKey, TUserClaim, TUserLogin, T
     /// </param>
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        var version = GetStoreOptions()?.SchemaVersion ?? IdentitySchemaVersions.Version1;
-        OnModelCreatingVersion(builder, version);
+
     }
 
-    /// <summary>
-    /// Configures the schema needed for the identity framework for a specific schema version.
-    /// </summary>
-    /// <param name="builder">
-    /// The builder being used to construct the model for this context.
-    /// </param>
-    /// <param name="schemaVersion">The schema version.</param>
-    internal virtual void OnModelCreatingVersion(ModelBuilder builder, Version schemaVersion)
-    {
-        if (schemaVersion >= IdentitySchemaVersions.Version2)
-        {
-            OnModelCreatingVersion2(builder);
-        }
-        else
-        {
-            OnModelCreatingVersion1(builder);
-        }
-    }
 
-    /// <summary>
-    /// Configures the schema needed for the identity framework for schema version 2.0
-    /// </summary>
-    /// <param name="builder">
-    /// The builder being used to construct the model for this context.
-    /// </param>
-    internal virtual void OnModelCreatingVersion2(ModelBuilder builder)
-    {
-        
-    }
-
-    /// <summary>
-    /// Configures the schema needed for the identity framework for schema version 1.0
-    /// </summary>
-    /// <param name="builder">
-    /// The builder being used to construct the model for this context.
-    /// </param>
-    internal virtual void OnModelCreatingVersion1(ModelBuilder builder)
-    {
-        
-    }
 }

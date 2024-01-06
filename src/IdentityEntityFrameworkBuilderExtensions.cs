@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Identity.MongoDb.Core.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ public static class IdentityEntityFrameworkBuilderExtensions
 
     private static void AddStores(IServiceCollection services, Type userType, Type? roleType, Type contextType)
     {
-        var identityUserType = FindGenericBaseType(userType, typeof(IdentityUser<>));
+        var identityUserType = FindGenericBaseType(userType, typeof(MongoIdentityUser<>));
         if (identityUserType == null)
         {
             //TODO : Custom errors ?
@@ -40,7 +41,7 @@ public static class IdentityEntityFrameworkBuilderExtensions
 
         if (roleType != null)
         {
-            var identityRoleType = FindGenericBaseType(roleType, typeof(IdentityRole<>));
+            var identityRoleType = FindGenericBaseType(roleType, typeof(MongoIdentityRole<>));
             if (identityRoleType == null)
             {
                 //TODO : Custom errors ?

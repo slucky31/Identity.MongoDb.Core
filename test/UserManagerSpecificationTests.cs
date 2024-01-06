@@ -598,7 +598,7 @@ public abstract class UserManagerSpecificationTestBase<TUser, TKey>
         var user = CreateTestUser();
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(user));
         var userId = await manager.GetUserIdAsync(user);
-        var login = new UserLoginInfo("Provider", userId, "display");
+        var login = new UserLoginInfo("Provider1", userId, "display1");
         IdentityResultAssert.IsSuccess(await manager.AddLoginAsync(user, login));
         Assert.False(await manager.HasPasswordAsync(user));
         IdentityResultAssert.IsSuccess(await manager.AddPasswordAsync(user, "password"));
@@ -638,7 +638,7 @@ public abstract class UserManagerSpecificationTestBase<TUser, TKey>
         var result = await manager.CreateAsync(user);
         Assert.NotNull(user);
         var userId = await manager.GetUserIdAsync(user);
-        var login = new UserLoginInfo("Provider", userId, "display");
+        var login = new UserLoginInfo("Provider2", userId, "display2");
         IdentityResultAssert.IsSuccess(result);
         IdentityResultAssert.IsSuccess(await manager.AddLoginAsync(user, login));
         Assert.Equal(user, await manager.FindByLoginAsync(login.LoginProvider, login.ProviderKey));
@@ -899,7 +899,7 @@ public abstract class UserManagerSpecificationTestBase<TUser, TKey>
     {
         var manager = CreateManager();
         var user = CreateTestUser();
-        var login = new UserLoginInfo("Provider", "key", "display");
+        var login = new UserLoginInfo("Provider3", "key3", "display3");
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(user));
         IdentityResultAssert.IsSuccess(await manager.AddLoginAsync(user, login));
         var result = await manager.AddLoginAsync(user, login);

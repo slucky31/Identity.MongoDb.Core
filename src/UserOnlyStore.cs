@@ -7,6 +7,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.MongoDb.Core.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,7 +17,7 @@ namespace Identity.MongoDb.Core;
 /// Creates a new instance of a persistence store for the specified user type.
 /// </summary>
 /// <typeparam name="TUser">The type representing a user.</typeparam>
-public class UserOnlyStore<TUser> : UserOnlyStore<TUser, DbContext, string> where TUser : IdentityUser<string>, new()
+public class UserOnlyStore<TUser> : UserOnlyStore<TUser, DbContext, string> where TUser : MongoIdentityUser<string>, new()
 {
     /// <summary>
     /// Constructs a new instance of <see cref="UserOnlyStore{TUser}"/>.
@@ -32,7 +33,7 @@ public class UserOnlyStore<TUser> : UserOnlyStore<TUser, DbContext, string> wher
 /// <typeparam name="TUser">The type representing a user.</typeparam>
 /// <typeparam name="TContext">The type of the data context class used to access the store.</typeparam>
 public class UserOnlyStore<TUser, TContext> : UserOnlyStore<TUser, TContext, string>
-    where TUser : IdentityUser<string>
+    where TUser : MongoIdentityUser<string>
     where TContext : DbContext
 {
     /// <summary>
@@ -50,7 +51,7 @@ public class UserOnlyStore<TUser, TContext> : UserOnlyStore<TUser, TContext, str
 /// <typeparam name="TContext">The type of the data context class used to access the store.</typeparam>
 /// <typeparam name="TKey">The type of the primary key for a role.</typeparam>
 public class UserOnlyStore<TUser, TContext, TKey> : UserOnlyStore<TUser, TContext, TKey, IdentityUserClaim<TKey>, IdentityUserLogin<TKey>, IdentityUserToken<TKey>>
-    where TUser : IdentityUser<TKey>
+    where TUser : MongoIdentityUser<TKey>
     where TContext : DbContext
     where TKey : IEquatable<TKey>
 {
@@ -86,7 +87,7 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     IUserAuthenticatorKeyStore<TUser>,
     IUserTwoFactorRecoveryCodeStore<TUser>,
     IProtectedUserStore<TUser>
-    where TUser : IdentityUser<TKey>
+    where TUser : MongoIdentityUser<TKey>
     where TContext : DbContext
     where TKey : IEquatable<TKey>
     where TUserClaim : IdentityUserClaim<TKey>, new()
@@ -478,6 +479,7 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(claim);
 
+        // TODO : REFACTOR FOR MONGODB
         var query = from userclaims in UserClaims
                     join user in Users on userclaims.UserId equals user.Id
                     where userclaims.ClaimValue == claim.Value

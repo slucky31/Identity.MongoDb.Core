@@ -6,19 +6,22 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.MongoDb.Core.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
 
 namespace Identity.MongoDb.Core;
 
 /// <summary>
 /// Represents a new instance of a persistence store for users, using the default implementation
-/// of <see cref="IdentityUser{TKey}"/> with a string as a primary key.
+/// of <see cref="MongoIdentityUser{TKey}"/> with a string as a primary key.
 /// </summary>
-public class UserStore : UserStore<IdentityUser<string>>
+public class UserStore : UserStore<MongoIdentityUser<ObjectId>>
 {
     /// <summary>
     /// Constructs a new instance of <see cref="UserStore"/>.
@@ -32,8 +35,8 @@ public class UserStore : UserStore<IdentityUser<string>>
 /// Creates a new instance of a persistence store for the specified user type.
 /// </summary>
 /// <typeparam name="TUser">The type representing a user.</typeparam>
-public class UserStore<TUser> : UserStore<TUser, IdentityRole, DbContext, string>
-    where TUser : IdentityUser<string>, new()
+public class UserStore<TUser> : UserStore<TUser, MongoIdentityRole, DbContext, ObjectId>
+    where TUser : MongoIdentityUser<ObjectId>, new()
 {
     /// <summary>
     /// Constructs a new instance of <see cref="UserStore{TUser}"/>.
@@ -49,9 +52,9 @@ public class UserStore<TUser> : UserStore<TUser, IdentityRole, DbContext, string
 /// <typeparam name="TUser">The type representing a user.</typeparam>
 /// <typeparam name="TRole">The type representing a role.</typeparam>
 /// <typeparam name="TContext">The type of the data context class used to access the store.</typeparam>
-public class UserStore<TUser, TRole, TContext> : UserStore<TUser, TRole, TContext, string>
-    where TUser : IdentityUser<string>
-    where TRole : IdentityRole<string>
+public class UserStore<TUser, TRole, TContext> : UserStore<TUser, TRole, TContext, ObjectId>
+    where TUser : MongoIdentityUser<ObjectId>
+    where TRole : MongoIdentityRole<ObjectId>
     where TContext : DbContext
 {
     /// <summary>
@@ -70,8 +73,8 @@ public class UserStore<TUser, TRole, TContext> : UserStore<TUser, TRole, TContex
 /// <typeparam name="TContext">The type of the data context class used to access the store.</typeparam>
 /// <typeparam name="TKey">The type of the primary key for a role.</typeparam>
 public class UserStore<TUser, TRole, TContext, TKey> : UserStore<TUser, TRole, TContext, TKey, IdentityUserClaim<TKey>, IdentityUserRole<TKey>, IdentityUserLogin<TKey>, IdentityUserToken<TKey>, IdentityRoleClaim<TKey>>
-    where TUser : IdentityUser<TKey>
-    where TRole : IdentityRole<TKey>
+    where TUser : MongoIdentityUser<TKey>
+    where TRole : MongoIdentityRole<TKey>
     where TContext : DbContext
     where TKey : IEquatable<TKey>
 {
@@ -98,8 +101,8 @@ public class UserStore<TUser, TRole, TContext, TKey> : UserStore<TUser, TRole, T
 public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] TKey, TUserClaim, TUserRole, TUserLogin, TUserToken, TRoleClaim> :
     UserStoreBase<TUser, TRole, TKey, TUserClaim, TUserRole, TUserLogin, TUserToken, TRoleClaim>,
     IProtectedUserStore<TUser>
-    where TUser : IdentityUser<TKey>
-    where TRole : IdentityRole<TKey>
+    where TUser : MongoIdentityUser<TKey>
+    where TRole : MongoIdentityRole<TKey>
     where TContext : DbContext
     where TKey : IEquatable<TKey>
     where TUserClaim : IdentityUserClaim<TKey>, new()
@@ -124,12 +127,9 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// </summary>
     public virtual TContext Context { get; private set; }
 
-    private DbSet<TUser> UsersSet { get { return Context.Set<TUser>(); } }
+    private DbSet<TUser> UsersDbSet { get { return Context.Set<TUser>(); } }
     private DbSet<TRole> Roles { get { return Context.Set<TRole>(); } }
-    private DbSet<TUserClaim> UserClaims { get { return Context.Set<TUserClaim>(); } }
-    private DbSet<TUserRole> UserRoles { get { return Context.Set<TUserRole>(); } }
-    private DbSet<TUserLogin> UserLogins { get { return Context.Set<TUserLogin>(); } }
-    private DbSet<TUserToken> UserTokens { get { return Context.Set<TUserToken>(); } }
+    
 
     /// <summary>
     /// Gets or sets a flag indicating if changes should be persisted after CreateAsync, UpdateAsync and DeleteAsync are called.
@@ -138,6 +138,8 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// True if changes should be automatically persisted, otherwise false.
     /// </value>
     public bool AutoSaveChanges { get; set; } = true;
+
+    public override IQueryable<TUser> Users => UsersDbSet;
 
     /// <summary>Saves the current store.</summary>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
@@ -226,7 +228,7 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
         var id = ConvertIdFromString(userId);
-        return UsersSet.FindAsync(new object?[] { id }, cancellationToken).AsTask();
+        return UsersDbSet.FindAsync(new object?[] { id }, cancellationToken).AsTask();
     }
 
     /// <summary>
@@ -248,10 +250,7 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <summary>
     /// A navigation property for the users the store contains.
     /// </summary>
-    public override IQueryable<TUser> Users
-    {
-        get { return UsersSet; }
-    }
+ 
 
     /// <summary>
     /// Return a role with the normalized name if it exists.
@@ -271,9 +270,26 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="roleId">The role's id.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user role if it exists.</returns>
-    protected override Task<TUserRole?> FindUserRoleAsync(TKey userId, TKey roleId, CancellationToken cancellationToken)
+    protected override async Task<TUserRole?> FindUserRoleAsync(TKey userId, TKey roleId, CancellationToken cancellationToken)
     {
-        return UserRoles.FindAsync(new object[] { userId, roleId }, cancellationToken).AsTask();
+        //return UserRoles.FindAsync(new object[] { userId, roleId }, cancellationToken).AsTask();
+        var user = await Users
+            .Where(x => x.Id.Equals(userId) && x.Roles.Any(r => r.Equals(roleId)))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (user is null) 
+        { 
+            return null;
+        }
+        
+        return user.Roles
+            .Where(r => r.Equals(roleId))
+            .Select(x => new TUserRole
+                {
+                    UserId = userId,
+                    RoleId = roleId
+                })
+            .FirstOrDefault();
     }
 
     /// <summary>
@@ -295,9 +311,13 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="providerKey">The key provided by the <paramref name="loginProvider"/> to identify a user.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user login if it exists.</returns>
-    protected override Task<TUserLogin?> FindUserLoginAsync(TKey userId, string loginProvider, string providerKey, CancellationToken cancellationToken)
+    protected override async Task<TUserLogin?> FindUserLoginAsync(TKey userId, string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
-        return UserLogins.SingleOrDefaultAsync(userLogin => userLogin.UserId.Equals(userId) && userLogin.LoginProvider == loginProvider && userLogin.ProviderKey == providerKey, cancellationToken);
+        Expression<Func<TUser, bool>> predicate = x => x.Id.Equals(userId) && x.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey);
+        
+        var user = await Users.Where(predicate).FirstOrDefaultAsync(cancellationToken);
+        
+        return (TUserLogin)user.GetUserLogin(loginProvider, providerKey);
     }
 
     /// <summary>
@@ -307,9 +327,24 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="providerKey">The key provided by the <paramref name="loginProvider"/> to identify a user.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user login if it exists.</returns>
-    protected override Task<TUserLogin?> FindUserLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
+    protected override async Task<TUserLogin?> FindUserLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
-        return UserLogins.SingleOrDefaultAsync(userLogin => userLogin.LoginProvider == loginProvider && userLogin.ProviderKey == providerKey, cancellationToken);
+        // TODO : MongoDB.Driver.Linq.ExpressionNotSupportedException : Expression not supported: i.Logins.AsQueryable().
+        var users = await Users.ToListAsync(cancellationToken);
+
+        if (users is null || users.Count == 0) 
+        {
+            return null;
+        }
+
+        var user = users.Where(x => x.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey)).FirstOrDefault();
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        return (TUserLogin)user.GetUserLogin(loginProvider, providerKey);        
     }
 
     /// <summary>
@@ -329,13 +364,15 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
             //TODO : Custom errors ?
             throw new ArgumentException("ValueCannotBeNullOrEmpty", nameof(normalizedRoleName));
         }
+
         var roleEntity = await FindRoleAsync(normalizedRoleName, cancellationToken);
         if (roleEntity == null)
         {
             //TODO : Custom errors ?
             throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "RoleNotFound", normalizedRoleName));
         }
-        UserRoles.Add(CreateUserRole(user, roleEntity));
+
+        user.AddRole(roleEntity.Id);
     }
 
     /// <summary>
@@ -358,11 +395,7 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         var roleEntity = await FindRoleAsync(normalizedRoleName, cancellationToken);
         if (roleEntity != null)
         {
-            var userRole = await FindUserRoleAsync(user.Id, roleEntity.Id, cancellationToken);
-            if (userRole != null)
-            {
-                UserRoles.Remove(userRole);
-            }
+            user.RemoveRole(roleEntity.Id);
         }
     }
 
@@ -377,12 +410,17 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
-        var userId = user.Id;
-        var query = from userRole in UserRoles
-                    join role in Roles on userRole.RoleId equals role.Id
-                    where userRole.UserId.Equals(userId)
-                    select role.Name;
-        return await query.ToListAsync(cancellationToken);
+
+        if (user.Roles.Any())
+        {
+            return await this.Roles
+                .Where(x => user.Roles.Contains(x.Id))
+                .Select(x => x.Name)
+                .ToListAsync(cancellationToken);
+        }
+
+        return new List<string>(0);
+
     }
 
     /// <summary>
@@ -418,14 +456,13 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="user">The user whose claims should be retrieved.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>A <see cref="Task{TResult}"/> that contains the claims granted to a user.</returns>
-    public override async Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
-        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(user);        
 
-        // FIX : MongoDb.EF ne gère pas encore les Selects
-        var claims = await UserClaims.Where(uc => uc.UserId.Equals(user.Id)).ToListAsync(cancellationToken);
-        return claims.Select(c => c.ToClaim()).ToList();
+        IList<Claim> claims = user.Claims.Select(x => x.ToClaim()).ToList();
+        return Task.FromResult(claims);
     }
 
     /// <summary>
@@ -442,9 +479,9 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ArgumentNullException.ThrowIfNull(claims);
         foreach (var claim in claims)
         {
-            UserClaims.Add(CreateUserClaim(user, claim));
+            user.AddClaim(claim);            
         }
-        return Task.FromResult(false);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -461,13 +498,9 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(claim);
         ArgumentNullException.ThrowIfNull(newClaim);
-
-        var matchedClaims = await UserClaims.Where(uc => uc.UserId.Equals(user.Id) && uc.ClaimValue == claim.Value && uc.ClaimType == claim.Type).ToListAsync(cancellationToken);
-        foreach (var matchedClaim in matchedClaims)
-        {
-            matchedClaim.ClaimValue = newClaim.Value;
-            matchedClaim.ClaimType = newClaim.Type;
-        }
+                
+        user.ReplaceClaim(claim, newClaim);
+        
     }
 
     /// <summary>
@@ -477,19 +510,17 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="claims">The claim to remove.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The <see cref="Task"/> that represents the asynchronous operation.</returns>
-    public override async Task RemoveClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task RemoveClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(claims);
         foreach (var claim in claims)
         {
-            var matchedClaims = await UserClaims.Where(uc => uc.UserId.Equals(user.Id) && uc.ClaimValue == claim.Value && uc.ClaimType == claim.Type).ToListAsync(cancellationToken);
-            foreach (var c in matchedClaims)
-            {
-                UserClaims.Remove(c);
-            }
+            user.RemoveClaim(claim);            
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -506,8 +537,10 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(login);
-        UserLogins.Add(CreateUserLogin(user, login));
-        return Task.FromResult(false);
+
+        user.AddLogin(login);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -527,7 +560,7 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         var entry = await FindUserLoginAsync(user.Id, loginProvider, providerKey, cancellationToken);
         if (entry != null)
         {
-            UserLogins.Remove(entry);
+            user.RemoveLogin(new UserLoginInfo(loginProvider, providerKey, entry.ProviderDisplayName));
         }
     }
 
@@ -539,16 +572,15 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <returns>
     /// The <see cref="Task"/> for the asynchronous operation, containing a list of <see cref="UserLoginInfo"/> for the specified <paramref name="user"/>, if any.
     /// </returns>
-    public override async Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
     {
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         var userId = user.Id;
 
-        // FIX : MongoDb.EF ne gère pas encore les Selects
-        var logins = await UserLogins.Where(l => l.UserId.Equals(userId)).ToListAsync(cancellationToken);
-        return logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList();            
+        IList<UserLoginInfo> logins = user.Logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList();
+        return Task.FromResult(logins);
     }
 
     /// <summary>
@@ -603,13 +635,8 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(claim);
 
-        var query = from userclaims in UserClaims
-                    join user in Users on userclaims.UserId equals user.Id
-                    where userclaims.ClaimValue == claim.Value
-                    && userclaims.ClaimType == claim.Type
-                    select user;
-
-        return await query.ToListAsync(cancellationToken);
+        Expression<Func<TUser, bool>> predicate = x => x.Claims.Any( c => c.ClaimValue == claim.Value && c.ClaimType == claim.Type);
+        return await Users.Where(predicate).ToListAsync(cancellationToken);     
     }
 
     /// <summary>
@@ -628,14 +655,9 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
 
         var role = await FindRoleAsync(normalizedRoleName, cancellationToken);
 
-        if (role != null)
+        if (role is not null)
         {
-            var query = from userrole in UserRoles
-                        join user in Users on userrole.UserId equals user.Id
-                        where userrole.RoleId.Equals(role.Id)
-                        select user;
-
-            return await query.ToListAsync(cancellationToken);
+            return await Users.Where(user => user.Roles.Contains(role.Id)).ToListAsync(cancellationToken);            
         }
         return new List<TUser>();
     }
@@ -649,17 +671,27 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user token if it exists.</returns>
     protected override Task<TUserToken?> FindTokenAsync(TUser user, string loginProvider, string name, CancellationToken cancellationToken)
-        => UserTokens.FindAsync(new object[] { user.Id, loginProvider, name }, cancellationToken).AsTask();
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(user);
+
+        var token = user.GetToken(loginProvider, name);
+        return Task.FromResult((TUserToken)token);
+    }       
 
     /// <summary>
     /// Add a new user token.
     /// </summary>
     /// <param name="token">The token to be added.</param>
     /// <returns></returns>
-    protected override Task AddUserTokenAsync(TUserToken token)
-    {
-        UserTokens.Add(token);
-        return Task.CompletedTask;
+    protected override async Task AddUserTokenAsync(TUserToken token)
+    {        
+        this.ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(token);
+
+        var user = await FindUserAsync(token.UserId, CancellationToken.None);
+        user.AddToken(token);        
     }
 
     /// <summary>
@@ -667,9 +699,12 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// </summary>
     /// <param name="token">The token to be removed.</param>
     /// <returns></returns>
-    protected override Task RemoveUserTokenAsync(TUserToken token)
+    protected override async Task RemoveUserTokenAsync(TUserToken token)
     {
-        UserTokens.Remove(token);
-        return Task.CompletedTask;
+        this.ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(token);
+
+        var user = await FindUserAsync(token.UserId, CancellationToken.None);
+        user.RemoveToken(token);
     }
 }

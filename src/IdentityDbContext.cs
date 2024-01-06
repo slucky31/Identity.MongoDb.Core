@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Identity.MongoDb.Core.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
@@ -14,7 +15,7 @@ namespace Identity.MongoDb.Core;
 /// <summary>
 /// Base class for the Entity Framework database context used for identity.
 /// </summary>
-public class IdentityDbContext : IdentityDbContext<IdentityUser, IdentityRole, string>
+public class IdentityDbContext : IdentityDbContext<MongoIdentityUser, MongoIdentityRole, ObjectId>
 {
     /// <summary>
     /// Initializes a new instance of <see cref="IdentityDbContext"/>.
@@ -32,7 +33,7 @@ public class IdentityDbContext : IdentityDbContext<IdentityUser, IdentityRole, s
 /// Base class for the Entity Framework database context used for identity.
 /// </summary>
 /// <typeparam name="TUser">The type of the user objects.</typeparam>
-public class IdentityDbContext<TUser> : IdentityDbContext<TUser, IdentityRole, string> where TUser : IdentityUser
+public class IdentityDbContext<TUser> : IdentityDbContext<TUser, MongoIdentityRole, ObjectId> where TUser : MongoIdentityUser
 {
     /// <summary>
     /// Initializes a new instance of <see cref="IdentityDbContext"/>.
@@ -53,8 +54,8 @@ public class IdentityDbContext<TUser> : IdentityDbContext<TUser, IdentityRole, s
 /// <typeparam name="TRole">The type of role objects.</typeparam>
 /// <typeparam name="TKey">The type of the primary key for users and roles.</typeparam>
 public class IdentityDbContext<TUser, TRole, TKey> : IdentityDbContext<TUser, TRole, TKey, IdentityUserClaim<TKey>, IdentityUserRole<TKey>, IdentityUserLogin<TKey>, IdentityRoleClaim<TKey>, IdentityUserToken<TKey>>
-    where TUser : IdentityUser<TKey>
-    where TRole : IdentityRole<TKey>
+    where TUser : MongoIdentityUser<TKey>
+    where TRole : MongoIdentityRole<TKey>
     where TKey : IEquatable<TKey>
 {
     /// <summary>
@@ -81,8 +82,8 @@ public class IdentityDbContext<TUser, TRole, TKey> : IdentityDbContext<TUser, TR
 /// <typeparam name="TRoleClaim">The type of the role claim object.</typeparam>
 /// <typeparam name="TUserToken">The type of the user token object.</typeparam>
 public abstract class IdentityDbContext<TUser, TRole, TKey, TUserClaim, TUserRole, TUserLogin, TRoleClaim, TUserToken> : IdentityUserContext<TUser, TKey, TUserClaim, TUserLogin, TUserToken>
-    where TUser : IdentityUser<TKey>
-    where TRole : IdentityRole<TKey>
+    where TUser : MongoIdentityUser<TKey>
+    where TRole : MongoIdentityRole<TKey>
     where TKey : IEquatable<TKey>
     where TUserClaim : IdentityUserClaim<TKey>
     where TUserRole : IdentityUserRole<TKey>
@@ -102,19 +103,9 @@ public abstract class IdentityDbContext<TUser, TRole, TKey, TUserClaim, TUserRol
     protected IdentityDbContext() { }
 
     /// <summary>
-    /// Gets or sets the <see cref="DbSet{TEntity}"/> of User roles.
-    /// </summary>
-    public virtual DbSet<TUserRole> UserRoles { get; set; } = default!;
-
-    /// <summary>
     /// Gets or sets the <see cref="DbSet{TEntity}"/> of roles.
     /// </summary>
     public virtual DbSet<TRole> Roles { get; set; } = default!;
-
-    /// <summary>
-    /// Gets or sets the <see cref="DbSet{TEntity}"/> of role claims.
-    /// </summary>
-    public virtual DbSet<TRoleClaim> RoleClaims { get; set; } = default!;
 
     /// <summary>
     /// Configures the schema needed for the identity framework.
@@ -131,37 +122,11 @@ public abstract class IdentityDbContext<TUser, TRole, TKey, TUserClaim, TUserRol
             b.HasKey(u => u.Id);
         });
 
-        builder.Entity<TUserClaim>(b =>
-        {
-            b.HasKey(uc => uc.Id);
-        });
-
-        builder.Entity<TUserLogin>(b =>
-        {
-            b.HasKey(l => new { l.LoginProvider, l.ProviderKey });
-        });
-
-        builder.Entity<TUserToken>(b =>
-        {
-            b.HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
-        });
-
         builder.Entity<TRole>(b =>
         {
             b.HasKey(r => r.Id);
         });
 
-        builder.Entity<TRoleClaim>(b =>
-        {
-            b.HasKey(rc => rc.Id);
-        });
-
-        builder.Entity<TUserRole>(b =>
-        {
-            b.HasKey(r => new { r.UserId, r.RoleId });
-        });
-
-        TypeDescriptor.AddAttributes(typeof(ObjectId), new TypeConverterAttribute(
-            typeof(ObjectIdConverter)));
+        TypeDescriptor.AddAttributes(typeof(ObjectId), new TypeConverterAttribute(typeof(ObjectIdConverter)));
     }
 }

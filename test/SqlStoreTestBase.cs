@@ -3,7 +3,9 @@
 
 using System.Globalization;
 using System.Linq.Expressions;
+using System.Reflection.Emit;
 using System.Security.Claims;
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
@@ -17,8 +19,8 @@ namespace Identity.MongoDb.Core.Test;
 // TODO: Add test variation with non IdentityDbContext
 
 public abstract class SqlStoreTestBase<TUser, TRole, TKey> : IdentitySpecificationTestBase<TUser, TRole, TKey>, IClassFixture<ScratchDatabaseFixture>
-    where TUser : IdentityUser<TKey>, new()
-    where TRole : IdentityRole<TKey>, new()
+    where TUser : MongoIdentityUser<TKey>, new()
+    where TRole : MongoIdentityRole<TKey>, new()
     where TKey : IEquatable<TKey>
 {
     protected readonly ScratchDatabaseFixture _fixture;
@@ -58,7 +60,9 @@ public abstract class SqlStoreTestBase<TUser, TRole, TKey> : IdentitySpecificati
 
     public class TestDbContext : IdentityDbContext<TUser, TRole, TKey>
     {
-        public TestDbContext(DbContextOptions options) : base(options) { }
+        public TestDbContext(DbContextOptions options) : base(options)
+        {
+        }
     }
 
     protected override TUser CreateTestUser(string namePrefix = "", string email = "", string phoneNumber = "",
@@ -91,7 +95,7 @@ public abstract class SqlStoreTestBase<TUser, TRole, TKey> : IdentitySpecificati
 #pragma warning restore CA1310 // Specify StringComparison for correctness
 
     protected virtual TestDbContext CreateContext()
-    {
+    {   
         var services = new ServiceCollection();
         SetupAddIdentity(services);
         var db = DbUtil.Create<TestDbContext>(_fixture.ConnectionString, _fixture.DatabaseName, services);

@@ -17,27 +17,35 @@ namespace Identity.MongoDb.Core.Test.Utilities;
 
 public sealed class ScratchDatabaseFixture: IDisposable
 {
-    private readonly string _connection = "mongodb+srv://api-rest-dev:YTTu6dYjRqFhX4zC@dev.dvd91.azure.mongodb.net/";
-    private readonly string _databaseName = "idmongodb_tests_" + DateTimeOffset.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
 
     public ScratchDatabaseFixture()
-    {      
+    {
+        Configuration config = new Configuration();
+        ConnectionString = config.Connection;
+        DatabaseName = config.DatabaseName;
     }
 
-    public string ConnectionString => _connection;
-    public string DatabaseName => _databaseName;
+    public string ConnectionString { get; private set; }
+    public string DatabaseName { get; private set;  }
 
     public void Dispose()
     {
-        var client = new MongoClient(_connection);
+        var client = new MongoClient(ConnectionString);
+        client.DropDatabaseAsync(DatabaseName);
 
-        // TODO : manage Async and iterator
-        var databases = client.ListDatabaseNames();
+        /*var databases = client.ListDatabaseNames();
         var databasesNames = databases.ToList();
         var databaseToDelete = databasesNames.Where(item => item.Contains("idmongodb_tests_", StringComparison.InvariantCultureIgnoreCase)).ToList();
         foreach (var database in databaseToDelete)
         {
             client.DropDatabaseAsync(database);
         }
+        */
+    }
+
+    public void Update(string connectionString, string databaseName)
+    {
+        ConnectionString = connectionString;
+        DatabaseName = databaseName;
     }
 }

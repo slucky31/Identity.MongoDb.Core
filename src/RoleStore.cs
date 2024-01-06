@@ -8,8 +8,10 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
+using Identity.MongoDb.Core.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
 
 namespace Identity.MongoDb.Core;
 
@@ -18,7 +20,7 @@ namespace Identity.MongoDb.Core;
 /// </summary>
 /// <typeparam name="TRole">The type of the class representing a role</typeparam>
 public class RoleStore<TRole> : RoleStore<TRole, DbContext, string>
-    where TRole : IdentityRole<string>
+    where TRole : MongoIdentityRole<string>
 {
     /// <summary>
     /// Constructs a new instance of <see cref="RoleStore{TRole}"/>.
@@ -33,8 +35,8 @@ public class RoleStore<TRole> : RoleStore<TRole, DbContext, string>
 /// </summary>
 /// <typeparam name="TRole">The type of the class representing a role.</typeparam>
 /// <typeparam name="TContext">The type of the data context class used to access the store.</typeparam>
-public class RoleStore<TRole, TContext> : RoleStore<TRole, TContext, string>
-    where TRole : IdentityRole<string>
+public class RoleStore<TRole, TContext> : RoleStore<TRole, TContext, ObjectId>
+    where TRole : MongoIdentityRole<ObjectId>
     where TContext : DbContext
 {
     /// <summary>
@@ -54,7 +56,7 @@ public class RoleStore<TRole, TContext> : RoleStore<TRole, TContext, string>
 public class RoleStore<TRole, TContext, TKey> : RoleStore<TRole, TContext, TKey, IdentityUserRole<TKey>, IdentityRoleClaim<TKey>>,
     IQueryableRoleStore<TRole>,
     IRoleClaimStore<TRole>
-    where TRole : IdentityRole<TKey>
+    where TRole : MongoIdentityRole<TKey>
     where TKey : IEquatable<TKey>
     where TContext : DbContext
 {
@@ -77,7 +79,7 @@ public class RoleStore<TRole, TContext, TKey> : RoleStore<TRole, TContext, TKey,
 public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
     IQueryableRoleStore<TRole>,
     IRoleClaimStore<TRole>
-    where TRole : IdentityRole<TKey>
+    where TRole : MongoIdentityRole<TKey>
     where TKey : IEquatable<TKey>
     where TContext : DbContext
     where TUserRole : IdentityUserRole<TKey>, new()
@@ -338,14 +340,13 @@ public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
     /// <param name="role">The role whose claims should be retrieved.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>A <see cref="Task{TResult}"/> that contains the claims granted to a role.</returns>
-    public virtual async Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = default(CancellationToken))
+    public virtual Task<IList<Claim>> GetClaimsAsync(TRole role, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(role);
 
-        // FIX : MongoDb.EF ne gère pas encore les Selects
-        var claims = await RoleClaims.Where(rc => rc.RoleId.Equals(role.Id)).ToListAsync(cancellationToken);
-        return claims.Select(c => new Claim(c.ClaimType!, c.ClaimValue!)).ToList();
+        IList<Claim> claims = role.Claims.Select(x => x.ToClaim()).ToList();
+        return Task.FromResult(claims);
     }
 
     /// <summary>
@@ -361,8 +362,9 @@ public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
         ArgumentNullException.ThrowIfNull(role);
         ArgumentNullException.ThrowIfNull(claim);
 
-        RoleClaims.Add(CreateRoleClaim(role, claim));
-        return Task.FromResult(false);
+        role.AddClaim(claim);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -372,16 +374,15 @@ public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
     /// <param name="claim">The claim to remove from the role.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The <see cref="Task"/> that represents the asynchronous operation.</returns>
-    public virtual async Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = default(CancellationToken))
+    public virtual Task RemoveClaimAsync(TRole role, Claim claim, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(role);
         ArgumentNullException.ThrowIfNull(claim);
-        var claims = await RoleClaims.Where(rc => rc.RoleId.Equals(role.Id) && rc.ClaimValue == claim.Value && rc.ClaimType == claim.Type).ToListAsync(cancellationToken);
-        foreach (var c in claims)
-        {
-            RoleClaims.Remove(c);
-        }
+
+        role.RemoveClaim(claim);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -389,7 +390,6 @@ public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
     /// </summary>
     public virtual IQueryable<TRole> Roles => Context.Set<TRole>();
 
-    private DbSet<TRoleClaim> RoleClaims { get { return Context.Set<TRoleClaim>(); } }
 
     /// <summary>
     /// Creates an entity representing a role claim.

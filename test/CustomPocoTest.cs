@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Globalization;
+using System.Security.Cryptography;
+using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -25,15 +27,14 @@ public class CustomPocoTest
 
     }
 
-    // TODO : improve
-    private readonly string connectionString = "mongodb+srv://api-rest-dev:YTTu6dYjRqFhX4zC@dev.dvd91.azure.mongodb.net/";
-    private readonly string databaseName = "CustomPoco" +"_tests_" + DateTimeOffset.Now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+    private readonly Configuration config = new Configuration();
 
     [Fact]
     public async Task CanUpdateNameGuid()
     {
+
         using (var db = new CustomDbContext<Guid>(
-            new DbContextOptionsBuilder().UseMongoDB(connectionString, databaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
         {
             
 
@@ -54,8 +55,9 @@ public class CustomPocoTest
     [Fact]
     public async Task CanUpdateNameString()
     {
+        
         using (var db = new CustomDbContext<string>(
-            new DbContextOptionsBuilder().UseMongoDB(connectionString, databaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
         {
             
 
@@ -77,10 +79,11 @@ public class CustomPocoTest
     public async Task CanCreateUserInt()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(connectionString, databaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
         {
             
             var user = new User<int>();
+            user.Id = RandomNumberGenerator.GetInt32(1000000);
             db.Users.Add(user);
             await db.SaveChangesAsync();
             user.UserName = "Boo";
@@ -95,16 +98,17 @@ public class CustomPocoTest
     public async Task CanCreateUserIntViaSet()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(connectionString, databaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
         {
 
             var user = new User<int>();
+            user.Id = RandomNumberGenerator.GetInt32(1000000);
             var users = db.Set<User<int>>();
             users.Add(user);
             await db.SaveChangesAsync();
-            user.UserName = "Boo";
+            user.UserName = "Boo2";
             await db.SaveChangesAsync();
-            var fetch = users.First(u => u.UserName == "Boo");
+            var fetch = users.First(u => u.UserName == "Boo2");
             Assert.Equal(user, fetch);
 
         }
@@ -114,11 +118,11 @@ public class CustomPocoTest
     public async Task CanUpdateNameInt()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(connectionString, databaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
         {
 
             var oldName = Guid.NewGuid().ToString();
-            var user = new User<int> { UserName = oldName };
+            var user = new User<int> { Id = RandomNumberGenerator.GetInt32(1000000), UserName = oldName };
             db.Users.Add(user);
             await db.SaveChangesAsync();
             var newName = Guid.NewGuid().ToString();
@@ -134,12 +138,12 @@ public class CustomPocoTest
     public async Task CanUpdateNameIntWithSet()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(connectionString, databaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
         {
             
 
             var oldName = Guid.NewGuid().ToString();
-            var user = new User<int> { UserName = oldName };
+            var user = new User<int> { Id = RandomNumberGenerator.GetInt32(1000000), UserName = oldName };
             db.Set<User<int>>().Add(user);
             await db.SaveChangesAsync();
             var newName = Guid.NewGuid().ToString();

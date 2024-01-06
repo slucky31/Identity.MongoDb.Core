@@ -2,15 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Data.Common;
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
 using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
-public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRole, string>
+[CollectionDefinition("ProtectedUserStoreTest")]
+public class ProtectedUserStoreTest : SqlStoreTestBase<MongoIdentityUser, MongoIdentityRole, ObjectId>
 {
     public ProtectedUserStoreTest(ScratchDatabaseFixture fixture)
         : base(fixture)
@@ -18,7 +21,7 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRol
 
     protected override void SetupAddIdentity(IServiceCollection services)
     {
-        services.AddIdentity<IdentityUser, IdentityRole>(options =>
+        services.AddIdentity<MongoIdentityUser, MongoIdentityRole>(options =>
         {
             options.Stores.ProtectPersonalData = true;
             options.Password.RequireDigit = false;
@@ -107,7 +110,7 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRol
             => "ink:" + data;
     }
 
-    private class CustomUser : IdentityUser
+    private class CustomUser : MongoIdentityUser
     {
         [ProtectedPersonalData]
         public string PersonalData1 { get; set; }
@@ -181,7 +184,7 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRol
         
         
             var services = new ServiceCollection().AddLogging();
-            services.AddIdentity<CustomUser, IdentityRole>(options =>
+            services.AddIdentity<CustomUser, MongoIdentityRole>(options =>
             {
                 options.Stores.ProtectPersonalData = protect;
             })
@@ -195,13 +198,13 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRol
             using (var scope = applicationServiceProvider.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<TContext>();
-                dbContext.Database.EnsureCreated();
+ 
 
                 var manager = scope.ServiceProvider.GetService<UserManager<CustomUser>>();
 
                 var guid = Guid.NewGuid().ToString();
                 var user = new CustomUser();
-                user.Id = guid;
+                user.Id = ObjectId.GenerateNewId();
                 user.UserName = guid;
                 IdentityResultAssert.IsSuccess(await manager.CreateAsync(user));
                 user.Email = "test@test.com";
@@ -236,7 +239,7 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRol
         }
     }
 
-    private class InvalidUser : IdentityUser
+    private class InvalidUser : MongoIdentityUser
     {
         [ProtectedPersonalData]
         public bool PersonalData1 { get; set; }
@@ -251,7 +254,7 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<IdentityUser, IdentityRol
         using (var scratch = new ScratchDatabaseFixture())
         {
             var services = new ServiceCollection().AddLogging();
-            services.AddIdentity<CustomUser, IdentityRole>(options =>
+            services.AddIdentity<CustomUser, MongoIdentityRole>(options =>
             {
                 options.Stores.ProtectPersonalData = true;
             })

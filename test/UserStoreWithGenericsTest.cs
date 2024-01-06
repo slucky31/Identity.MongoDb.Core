@@ -4,6 +4,7 @@
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,11 +13,12 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
+[CollectionDefinition("UserStoreWithGenericsTest")]
 public class UserStoreWithGenericsTest : IdentitySpecificationTestBase<IdentityUserWithGenerics, MyIdentityRole, string>, IClassFixture<ScratchDatabaseFixture>
 {
     private readonly ScratchDatabaseFixture _fixture;
 
-    public UserStoreWithGenericsTest(ScratchDatabaseFixture fixture)
+    public UserStoreWithGenericsTest(ScratchDatabaseFixture? fixture)
     {
         _fixture = fixture;
     }
@@ -48,6 +50,7 @@ public class UserStoreWithGenericsTest : IdentitySpecificationTestBase<IdentityU
     {
         return new IdentityUserWithGenerics
         {
+            Id = Guid.NewGuid().ToString(),
             UserName = useNamePrefixAsUserName ? namePrefix : string.Format(CultureInfo.InvariantCulture, "{0}{1}", namePrefix, Guid.NewGuid()),
             Email = email,
             PhoneNumber = phoneNumber,
@@ -81,7 +84,7 @@ public class UserStoreWithGenericsTest : IdentitySpecificationTestBase<IdentityU
     public void AddEntityFrameworkStoresWithInvalidUserThrows()
     {
         var services = new ServiceCollection();
-        var builder = services.AddIdentity<object, IdentityRole>();
+        var builder = services.AddIdentity<object, MongoIdentityRole>();
         var e = Assert.Throws<InvalidOperationException>(() => builder.AddEntityFrameworkStores<ContextWithGenerics>());
         Assert.Contains("AddEntityFrameworkStores", e.Message);
     }
@@ -90,7 +93,7 @@ public class UserStoreWithGenericsTest : IdentitySpecificationTestBase<IdentityU
     public void AddEntityFrameworkStoresWithInvalidRoleThrows()
     {
         var services = new ServiceCollection();
-        var builder = services.AddIdentity<IdentityUser, object>();
+        var builder = services.AddIdentity<MongoIdentityUser, object>();
         var e = Assert.Throws<InvalidOperationException>(() => builder.AddEntityFrameworkStores<ContextWithGenerics>());
         Assert.Contains("AddEntityFrameworkStores", e.Message);
     }
@@ -190,7 +193,7 @@ public class ClaimEqualityComparer : IEqualityComparer<Claim>
 
 #region Generic Type defintions
 
-public class IdentityUserWithGenerics : IdentityUser<string>
+public class IdentityUserWithGenerics : MongoIdentityUser<string>
 {
     public IdentityUserWithGenerics()
     {
@@ -300,7 +303,7 @@ public class IdentityUserRoleWithDate : IdentityUserRole<string>
     public DateTime Created { get; set; }
 }
 
-public class MyIdentityRole : IdentityRole<string>
+public class MyIdentityRole : MongoIdentityRole<string>
 {
     public MyIdentityRole() : base()
     {

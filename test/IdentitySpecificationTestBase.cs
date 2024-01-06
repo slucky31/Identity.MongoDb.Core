@@ -4,6 +4,7 @@
 using System.Linq;
 using System.Linq.Expressions;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;

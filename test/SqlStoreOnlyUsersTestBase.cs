@@ -4,6 +4,7 @@
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Security.Claims;
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,7 @@ using Xunit;
 namespace Identity.MongoDb.Core.Test;
 
 public abstract class SqlStoreOnlyUsersTestBase<TUser, TKey> : UserManagerSpecificationTestBase<TUser, TKey>, IClassFixture<ScratchDatabaseFixture>
-    where TUser : IdentityUser<TKey>, new()
+    where TUser : MongoIdentityUser<TKey>, new()
     where TKey : IEquatable<TKey>
 {
     private readonly ScratchDatabaseFixture _fixture;
@@ -26,6 +27,19 @@ public abstract class SqlStoreOnlyUsersTestBase<TUser, TKey> : UserManagerSpecif
     public class TestUserDbContext : IdentityUserContext<TUser, TKey>
     {
         public TestUserDbContext(DbContextOptions options) : base(options) { }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            if (modelBuilder != null)
+            {
+                modelBuilder.Entity<IdentityUserLogin<string>>().HasKey(x => x.UserId);
+                modelBuilder.Entity<IdentityUserLogin<string>>().Property(x => x.UserId).HasElementName("_id");
+
+                modelBuilder.Entity<IdentityUserToken<string>>().HasKey(x => x.UserId);
+                modelBuilder.Entity<IdentityUserToken<string>>().Property(x => x.UserId).HasElementName("_id");
+            }
+        }
     }
 
     protected override TUser CreateTestUser(string namePrefix = "", string email = "", string phoneNumber = "",

@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
 using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
@@ -22,35 +24,16 @@ public class UserOnlyCustomContextTest : IClassFixture<ScratchDatabaseFixture>
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            builder.Entity<IdentityUser>(b =>
+            builder.Entity<MongoIdentityUser>(b =>
             {
                 b.HasKey(u => u.Id);                
                 b.Property(u => u.ConcurrencyStamp).IsConcurrencyToken();
-
                 b.Property(u => u.UserName).HasMaxLength(256);
                 b.Property(u => u.NormalizedUserName).HasMaxLength(256);
                 b.Property(u => u.Email).HasMaxLength(256);
-                b.Property(u => u.NormalizedEmail).HasMaxLength(256);
-
-                b.HasMany<IdentityUserClaim<string>>().WithOne().HasForeignKey(uc => uc.UserId).IsRequired();
-                b.HasMany<IdentityUserLogin<string>>().WithOne().HasForeignKey(ul => ul.UserId).IsRequired();
-                b.HasMany<IdentityUserToken<string>>().WithOne().HasForeignKey(ut => ut.UserId).IsRequired();
+                b.Property(u => u.NormalizedEmail).HasMaxLength(256);                
             });
-
-            builder.Entity<IdentityUserClaim<string>>(b =>
-            {
-                b.HasKey(uc => uc.Id);                
-            });
-
-            builder.Entity<IdentityUserLogin<string>>(b =>
-            {
-                b.HasKey(l => new { l.LoginProvider, l.ProviderKey });          
-            });
-
-            builder.Entity<IdentityUserToken<string>>(b =>
-            {
-                b.HasKey(l => new { l.UserId, l.LoginProvider, l.Name });                
-            });
+            
         }
     }
 
@@ -63,7 +46,7 @@ public class UserOnlyCustomContextTest : IClassFixture<ScratchDatabaseFixture>
             .AddDbContext<CustomContext>(o =>
                 o.UseMongoDB(fixture.ConnectionString, fixture.DatabaseName)
                     )
-            .AddIdentityCore<IdentityUser>(o => { })
+            .AddIdentityCore<MongoIdentityUser>(o => { })
             .AddEntityFrameworkStores<CustomContext>();
 
         services.AddLogging();
@@ -81,15 +64,15 @@ public class UserOnlyCustomContextTest : IClassFixture<ScratchDatabaseFixture>
     [Fact]
     public async Task EnsureStartupUsageWorks()
     {
-        var userStore = _builder.ApplicationServices.GetRequiredService<IUserStore<IdentityUser>>();
-        var userManager = _builder.ApplicationServices.GetRequiredService<UserManager<IdentityUser>>();
+        var userStore = _builder.ApplicationServices.GetRequiredService<IUserStore<MongoIdentityUser>>();
+        var userManager = _builder.ApplicationServices.GetRequiredService<UserManager<MongoIdentityUser>>();
 
         Assert.NotNull(userStore);
         Assert.NotNull(userManager);
 
         const string userName = "admin";
         const string password = "[PLACEHOLDER]-1a";
-        var user = new IdentityUser { UserName = userName };
+        var user = new MongoIdentityUser { UserName = userName };
         IdentityResultAssert.IsSuccess(await userManager.CreateAsync(user, password));
         IdentityResultAssert.IsSuccess(await userManager.DeleteAsync(user));
     }

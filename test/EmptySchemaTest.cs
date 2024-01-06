@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;
@@ -25,7 +26,7 @@ public class EmptySchemaTest : IClassFixture<ScratchDatabaseFixture>
             .AddDbContext<EmptyDbContext>(o =>
                 o.UseMongoDB(fixture.ConnectionString, fixture.DatabaseName)
                     )
-            .AddIdentity<IdentityUser, IdentityRole>(o =>
+            .AddIdentity<MongoIdentityUser, MongoIdentityRole>(o =>
             {
                 // Versions >= 10 are empty
                 o.Stores.SchemaVersion = new Version(11, 0);

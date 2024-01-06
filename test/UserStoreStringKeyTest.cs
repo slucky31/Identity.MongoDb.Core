@@ -1,15 +1,17 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using Identity.MongoDb.Core.Domain;
 using Identity.MongoDb.Core.Test.Utilities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson;
 using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
-public class StringUser : IdentityUser
+public class StringUser : MongoIdentityUser<string>
 {
     public StringUser()
     {
@@ -18,7 +20,7 @@ public class StringUser : IdentityUser
     }
 }
 
-public class StringRole : IdentityRole<string>
+public class StringRole : MongoIdentityRole<string>
 {
     public StringRole()
     {
@@ -27,11 +29,13 @@ public class StringRole : IdentityRole<string>
     }
 }
 
+[CollectionDefinition("UserStoreStringKeyTest")]
 public class UserStoreStringKeyTest : SqlStoreTestBase<StringUser, StringRole, string>
 {
     public UserStoreStringKeyTest(ScratchDatabaseFixture fixture)
         : base(fixture)
-    { }
+    {
+    }
 
     [Fact]
     public void AddEntityFrameworkStoresCanInferKey()
@@ -57,13 +61,13 @@ public class UserStoreStringKeyTest : SqlStoreTestBase<StringUser, StringRole, s
         services.AddLogging()
             .AddSingleton(new TestDbContext(new DbContextOptionsBuilder<TestDbContext>().Options));
         // This used to throw
-        var builder = services.AddIdentityCore<IdentityUser<string>>().AddRoles<IdentityRole<string>>().AddEntityFrameworkStores<TestDbContext>();
+        var builder = services.AddIdentityCore<MongoIdentityUser<string>>().AddRoles<MongoIdentityRole<string>>().AddEntityFrameworkStores<TestDbContext>();
 
         var sp = services.BuildServiceProvider();
         using (var csope = sp.CreateScope())
         {
-            Assert.NotNull(sp.GetRequiredService<UserManager<IdentityUser<string>>>());
-            Assert.NotNull(sp.GetRequiredService<RoleManager<IdentityRole<string>>>());
+            Assert.NotNull(sp.GetRequiredService<UserManager<MongoIdentityUser<string>>>());
+            Assert.NotNull(sp.GetRequiredService<RoleManager<MongoIdentityRole<string>>>());
         }
     }
 }
