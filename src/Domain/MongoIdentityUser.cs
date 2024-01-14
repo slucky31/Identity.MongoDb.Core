@@ -112,9 +112,7 @@ public class MongoIdentityUser<TKey> : IdentityUser<TKey>
             return false;
         }
 
-        MongoClaim mongoClaim = new MongoClaim();
-        mongoClaim.InitializeFromClaim(claim);
-        this.Claims.Add(mongoClaim);
+        this.Claims.Add(new MongoClaim(claim));
 
         return true;
     }
@@ -134,9 +132,8 @@ public class MongoIdentityUser<TKey> : IdentityUser<TKey>
             return false;
         }
 
-        MongoClaim mongoClaim = new MongoClaim();
-        mongoClaim.InitializeFromClaim(claim);
-        this.Claims.Remove(mongoClaim);
+        this.Claims.Remove(new MongoClaim(claim));
+
         return true;
     }
 
@@ -182,7 +179,6 @@ public class MongoIdentityUser<TKey> : IdentityUser<TKey>
     /// </summary>
     /// <param name="roleId">The id of the role to remove.</param>
     /// <returns>Returns <c>true</c> if the role was successfully removed.</returns>
-
     public virtual bool RemoveRole(TKey roleId)
     {
         ArgumentNullException.ThrowIfNull(roleId);
@@ -218,7 +214,12 @@ public class MongoIdentityUser<TKey> : IdentityUser<TKey>
             return false;
         }
 
-        var userLogin = new IdentityUserLogin<TKey>();        
+        var userLogin = new IdentityUserLogin<TKey>()
+        {
+            LoginProvider = login.LoginProvider,
+            ProviderKey = login.ProviderKey,
+            ProviderDisplayName = login.ProviderDisplayName
+        };
         this.Logins.Add(userLogin);
 
         return true;

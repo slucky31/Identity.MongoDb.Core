@@ -13,6 +13,7 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
+[CollectionDefinition("UserStoreTest")]
 public class UserStoreTest : IdentitySpecificationTestBase<MongoIdentityUser, MongoIdentityRole>, IClassFixture<ScratchDatabaseFixture>
 {
     private readonly ScratchDatabaseFixture _fixture;

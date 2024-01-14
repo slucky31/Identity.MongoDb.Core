@@ -14,6 +14,7 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
+[CollectionDefinition("UserOnlyCustomContextTest")]
 public class UserOnlyCustomContextTest : IClassFixture<ScratchDatabaseFixture>
 {
     private readonly ApplicationBuilder _builder;

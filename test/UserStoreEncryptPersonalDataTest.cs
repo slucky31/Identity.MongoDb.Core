@@ -251,8 +251,8 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<MongoIdentityUser, MongoI
     [Fact]
     public void ProtectedPersonalDataThrowsOnNonString()
     {
-        using (var scratch = new ScratchDatabaseFixture())
-        {
+        var scratch = new ScratchDatabaseFixture();
+        
             var services = new ServiceCollection().AddLogging();
             services.AddIdentity<CustomUser, MongoIdentityRole>(options =>
             {
@@ -266,7 +266,7 @@ public class ProtectedUserStoreTest : SqlStoreTestBase<MongoIdentityUser, MongoI
             var dbContext = new IdentityDbContext<InvalidUser>(dbOptions);
             var e = Assert.Throws<InvalidOperationException>(() => dbContext.Database.EnsureCreated());
             Assert.Equal("[ProtectedPersonalData] only works strings by default.", e.Message);
-        }
+        
     }
 
 }

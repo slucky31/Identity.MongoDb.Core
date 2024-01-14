@@ -14,6 +14,7 @@ public class MongoIdentityRole : MongoIdentityRole<ObjectId>
     /// </summary>
     public MongoIdentityRole() : this(null)
     {
+        Id = ObjectId.GenerateNewId();
     }
 
     /// <summary>
@@ -22,6 +23,7 @@ public class MongoIdentityRole : MongoIdentityRole<ObjectId>
     /// <param name="roleName">The name of the role.</param>
     public MongoIdentityRole(string roleName) : base(roleName)
     {
+        Id = ObjectId.GenerateNewId();
     }
 }
 
@@ -69,9 +71,7 @@ public class MongoIdentityRole<TKey> : IdentityRole<TKey>
             return false;
         }
 
-        MongoClaim mongoClaim = new MongoClaim();
-        mongoClaim.InitializeFromClaim(claim);
-        this.Claims.Add(mongoClaim);
+        this.Claims.Add(new MongoClaim(claim));
 
         return true;
     }
@@ -92,8 +92,6 @@ public class MongoIdentityRole<TKey> : IdentityRole<TKey>
         }
 
         this.Claims.Remove(mongoClaim);
-        return true;
-
         return true;
     }
 }

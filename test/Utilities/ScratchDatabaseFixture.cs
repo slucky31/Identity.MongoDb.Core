@@ -15,8 +15,13 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test.Utilities;
 
-public sealed class ScratchDatabaseFixture: IDisposable
+public sealed class ScratchDatabaseFixture: IAsyncLifetime
 {
+
+    Task IAsyncLifetime.InitializeAsync()
+    {
+        return Task.CompletedTask;
+    }
 
     public ScratchDatabaseFixture()
     {
@@ -28,24 +33,9 @@ public sealed class ScratchDatabaseFixture: IDisposable
     public string ConnectionString { get; private set; }
     public string DatabaseName { get; private set;  }
 
-    public void Dispose()
+    async Task IAsyncLifetime.DisposeAsync()
     {
-        var client = new MongoClient(ConnectionString);
-        client.DropDatabaseAsync(DatabaseName);
-
-        /*var databases = client.ListDatabaseNames();
-        var databasesNames = databases.ToList();
-        var databaseToDelete = databasesNames.Where(item => item.Contains("idmongodb_tests_", StringComparison.InvariantCultureIgnoreCase)).ToList();
-        foreach (var database in databaseToDelete)
-        {
-            client.DropDatabaseAsync(database);
-        }
-        */
-    }
-
-    public void Update(string connectionString, string databaseName)
-    {
-        ConnectionString = connectionString;
-        DatabaseName = databaseName;
+        //var client = new MongoClient(ConnectionString);
+        //await client.DropDatabaseAsync(DatabaseName);
     }
 }

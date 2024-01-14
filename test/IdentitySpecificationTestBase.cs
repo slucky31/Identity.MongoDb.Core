@@ -238,7 +238,7 @@ public abstract class IdentitySpecificationTestBase<TUser, TRole, TKey> : UserMa
         var roleSafe = CreateTestRole("ClaimsAdd");
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(role));
         IdentityResultAssert.IsSuccess(await manager.CreateAsync(roleSafe));
-        Claim[] claims = { new Claim("c", "v"), new Claim("c2", "v2"), new Claim("c2", "v3") };
+        Claim[] claims = { new Claim("c", "v"), new Claim("c2", "v2"), new Claim("c3", "v3") };
         foreach (Claim c in claims)
         {
             IdentityResultAssert.IsSuccess(await manager.AddClaimAsync(role, c));
