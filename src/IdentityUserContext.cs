@@ -72,7 +72,7 @@ public abstract class IdentityUserContext<TUser, TKey, TUserClaim, TUserLogin, T
     /// Initializes a new instance of the class.
     /// </summary>
     /// <param name="options">The options to be used by a <see cref="DbContext"/>.</param>
-    public IdentityUserContext(DbContextOptions options) : base(options) { }
+    protected IdentityUserContext(DbContextOptions options) : base(options) { }
 
     /// <summary>
     /// Initializes a new instance of the class.

@@ -271,11 +271,9 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user role if it exists.</returns>
     protected override async Task<TUserRole?> FindUserRoleAsync(TKey userId, TKey roleId, CancellationToken cancellationToken)
-    {
-        //return UserRoles.FindAsync(new object[] { userId, roleId }, cancellationToken).AsTask();
-        var user = await Users
-            .Where(x => x.Id.Equals(userId) && x.Roles.Any(r => r.Equals(roleId)))
-            .FirstOrDefaultAsync(cancellationToken);
+    {        
+        var users = await Users.ToListAsync(cancellationToken);
+        var user = users.Where(x => x.Id.Equals(userId) && x.Roles.Any(r => r.Equals(roleId))).FirstOrDefault();
 
         if (user is null) 
         { 
@@ -413,14 +411,11 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
 
         if (user.Roles.Any())
         {
-            return await this.Roles
-                .Where(x => user.Roles.Contains(x.Id))
-                .Select(x => x.Name)
-                .ToListAsync(cancellationToken);
+            var roles =  await this.Roles.Where(x => user.Roles.Contains(x.Id)).ToListAsync(cancellationToken);
+            return roles.Select(r => r.Name).ToList();                                               
         }
 
         return new List<string>(0);
-
     }
 
     /// <summary>
@@ -479,7 +474,11 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ArgumentNullException.ThrowIfNull(claims);
         foreach (var claim in claims)
         {
-            user.AddClaim(claim);            
+            var result = user.AddClaim(claim);
+            if (!result)
+            {
+                Task.FromResult(false);
+            }
         }
         return Task.CompletedTask;
     }
@@ -517,7 +516,11 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ArgumentNullException.ThrowIfNull(claims);
         foreach (var claim in claims)
         {
-            user.RemoveClaim(claim);            
+            var result = user.RemoveClaim(claim);
+            if (result is false)
+            {
+                return Task.FromResult(false);
+            }
         }
 
         return Task.CompletedTask;
@@ -537,10 +540,8 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(login);
-
-        user.AddLogin(login);
-
-        return Task.CompletedTask;
+        
+        return Task.FromResult(user.AddLogin(login));
     }
 
     /// <summary>
@@ -557,6 +558,7 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
+
         var entry = await FindUserLoginAsync(user.Id, loginProvider, providerKey, cancellationToken);
         if (entry != null)
         {
@@ -597,12 +599,16 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
     {
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
-        var userLogin = await FindUserLoginAsync(loginProvider, providerKey, cancellationToken);
-        if (userLogin != null)
+
+        var users = await Users.ToListAsync(cancellationToken);
+        if (users is null || users.Count == 0)
         {
-            return await FindUserAsync(userLogin.UserId, cancellationToken);
+            return null;
         }
-        return null;
+
+        var user = users.Where(x => x.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey)).FirstOrDefault();
+        return user;
+        
     }
 
     /// <summary>
@@ -635,8 +641,9 @@ public class UserStore<TUser, TRole, TContext, [DynamicallyAccessedMembers(Dynam
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(claim);
 
-        Expression<Func<TUser, bool>> predicate = x => x.Claims.Any( c => c.ClaimValue == claim.Value && c.ClaimType == claim.Type);
-        return await Users.Where(predicate).ToListAsync(cancellationToken);     
+        var users = await Users.ToListAsync(cancellationToken);
+        
+        return users.Where(x => x.Claims.Any(c => c.ClaimValue == claim.Value && c.ClaimType == claim.Type)).ToList();     
     }
 
     /// <summary>

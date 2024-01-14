@@ -362,9 +362,9 @@ public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
         ArgumentNullException.ThrowIfNull(role);
         ArgumentNullException.ThrowIfNull(claim);
 
-        role.AddClaim(claim);
+        var result = role.AddClaim(claim);
 
-        return Task.CompletedTask;
+        return Task.FromResult(result);
     }
 
     /// <summary>
@@ -380,9 +380,9 @@ public class RoleStore<TRole, TContext, TKey, TUserRole, TRoleClaim> :
         ArgumentNullException.ThrowIfNull(role);
         ArgumentNullException.ThrowIfNull(claim);
 
-        role.RemoveClaim(claim);
+        var result = role.RemoveClaim(claim);
 
-        return Task.CompletedTask;
+        return Task.FromResult(result);
     }
 
     /// <summary>

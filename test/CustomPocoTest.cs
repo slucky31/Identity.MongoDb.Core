@@ -9,8 +9,16 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
-public class CustomPocoTest
+[CollectionDefinition("CustomPocoTest")]
+public class CustomPocoTest : IClassFixture<ScratchDatabaseFixture>
 {
+
+    private readonly ScratchDatabaseFixture _fixture;
+
+    public CustomPocoTest(ScratchDatabaseFixture fixture)
+    {
+        _fixture = fixture;
+    }
 
     public class User<TKey> where TKey : IEquatable<TKey>
     {
@@ -27,14 +35,12 @@ public class CustomPocoTest
 
     }
 
-    private readonly Configuration config = new Configuration();
-
     [Fact]
     public async Task CanUpdateNameGuid()
     {
 
         using (var db = new CustomDbContext<Guid>(
-            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options))
         {
             
 
@@ -57,7 +63,7 @@ public class CustomPocoTest
     {
         
         using (var db = new CustomDbContext<string>(
-            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options))
         {
             
 
@@ -79,7 +85,7 @@ public class CustomPocoTest
     public async Task CanCreateUserInt()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options))
         {
             
             var user = new User<int>();
@@ -98,7 +104,7 @@ public class CustomPocoTest
     public async Task CanCreateUserIntViaSet()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options))
         {
 
             var user = new User<int>();
@@ -118,7 +124,7 @@ public class CustomPocoTest
     public async Task CanUpdateNameInt()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options))
         {
 
             var oldName = Guid.NewGuid().ToString();
@@ -138,7 +144,7 @@ public class CustomPocoTest
     public async Task CanUpdateNameIntWithSet()
     {
         using (var db = new CustomDbContext<int>(
-            new DbContextOptionsBuilder().UseMongoDB(config.Connection, config.DatabaseName).Options))
+            new DbContextOptionsBuilder().UseMongoDB(_fixture.ConnectionString, _fixture.DatabaseName).Options))
         {
             
 

@@ -13,6 +13,7 @@ using Xunit;
 
 namespace Identity.MongoDb.Core.Test;
 
+[CollectionDefinition("EmptySchemaTest")]
 public class EmptySchemaTest : IClassFixture<ScratchDatabaseFixture>
 {
     private readonly ApplicationBuilder _builder;

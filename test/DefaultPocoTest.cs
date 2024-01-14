@@ -18,6 +18,7 @@ public class DefaultPocoTest : IClassFixture<ScratchDatabaseFixture>
 {
     private readonly ApplicationBuilder _builder;
 
+
     public DefaultPocoTest(ScratchDatabaseFixture fixture)
     {
         var services = new ServiceCollection();

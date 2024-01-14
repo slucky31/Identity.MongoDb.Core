@@ -118,17 +118,17 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <summary>
     /// DbSet of user claims.
     /// </summary>
-    protected DbSet<TUserClaim> UserClaims { get { return Context.Set<TUserClaim>(); } }
+    //protected DbSet<TUserClaim> UserClaims { get { return Context.Set<TUserClaim>(); } }
 
     /// <summary>
     /// DbSet of user logins.
     /// </summary>
-    protected DbSet<TUserLogin> UserLogins { get { return Context.Set<TUserLogin>(); } }
+    //protected DbSet<TUserLogin> UserLogins { get { return Context.Set<TUserLogin>(); } }
 
     /// <summary>
     /// DbSet of user tokens.
     /// </summary>
-    protected DbSet<TUserToken> UserTokens { get { return Context.Set<TUserToken>(); } }
+    //protected DbSet<TUserToken> UserTokens { get { return Context.Set<TUserToken>(); } }
 
     /// <summary>
     /// Gets or sets a flag indicating if changes should be persisted after CreateAsync, UpdateAsync and DeleteAsync are called.
@@ -271,9 +271,11 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <param name="providerKey">The key provided by the <paramref name="loginProvider"/> to identify a user.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user login if it exists.</returns>
-    protected override Task<TUserLogin?> FindUserLoginAsync(TKey userId, string loginProvider, string providerKey, CancellationToken cancellationToken)
+    protected override async Task<TUserLogin?> FindUserLoginAsync(TKey userId, string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
-        return UserLogins.SingleOrDefaultAsync(userLogin => userLogin.UserId.Equals(userId) && userLogin.LoginProvider == loginProvider && userLogin.ProviderKey == providerKey, cancellationToken);
+        var users = await Users.Where(x => x.Id.Equals(userId)).ToListAsync(cancellationToken);
+        var user = users.Where(x => x.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey)).FirstOrDefault();
+        return (TUserLogin)user?.GetUserLogin(loginProvider, providerKey);       
     }
 
     /// <summary>
@@ -283,9 +285,11 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <param name="providerKey">The key provided by the <paramref name="loginProvider"/> to identify a user.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user login if it exists.</returns>
-    protected override Task<TUserLogin?> FindUserLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
+    protected override async Task<TUserLogin?> FindUserLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
     {
-        return UserLogins.SingleOrDefaultAsync(userLogin => userLogin.LoginProvider == loginProvider && userLogin.ProviderKey == providerKey, cancellationToken);
+        var users = await Users.ToListAsync(cancellationToken);
+        var user = users.Where(x => x.Logins.Any(l => l.LoginProvider == loginProvider && l.ProviderKey == providerKey)).FirstOrDefault();
+        return (TUserLogin)user?.GetUserLogin(loginProvider, providerKey);        
     }
 
     /// <summary>
@@ -294,14 +298,13 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <param name="user">The user whose claims should be retrieved.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>A <see cref="Task{TResult}"/> that contains the claims granted to a user.</returns>
-    public override async Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task<IList<Claim>> GetClaimsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
 
-        // FIX : MongoDb.EF ne gère pas encore les Selects
-        var userClaims = await UserClaims.Where(uc => uc.UserId.Equals(user.Id)).ToListAsync(cancellationToken);
-        return userClaims.Select(c => c.ToClaim()).ToList();                
+        IList<Claim> claims = user.Claims.Select(x => x.ToClaim()).ToList();
+        return Task.FromResult(claims);
     }
 
     /// <summary>
@@ -316,11 +319,13 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(claims);
-        foreach (var claim in claims)
+
+        foreach (Claim claim in claims)
         {
-            UserClaims.Add(CreateUserClaim(user, claim));
+            user.AddClaim(claim);
         }
-        return Task.FromResult(false);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -331,19 +336,16 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <param name="newClaim">The new claim replacing the <paramref name="claim"/>.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The <see cref="Task"/> that represents the asynchronous operation.</returns>
-    public override async Task ReplaceClaimAsync(TUser user, Claim claim, Claim newClaim, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task ReplaceClaimAsync(TUser user, Claim claim, Claim newClaim, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(claim);
         ArgumentNullException.ThrowIfNull(newClaim);
 
-        var matchedClaims = await UserClaims.Where(uc => uc.UserId.Equals(user.Id) && uc.ClaimValue == claim.Value && uc.ClaimType == claim.Type).ToListAsync(cancellationToken);
-        foreach (var matchedClaim in matchedClaims)
-        {
-            matchedClaim.ClaimValue = newClaim.Value;
-            matchedClaim.ClaimType = newClaim.Type;
-        }
+        user.ReplaceClaim(claim, newClaim);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -353,19 +355,18 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <param name="claims">The claim to remove.</param>
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The <see cref="Task"/> that represents the asynchronous operation.</returns>
-    public override async Task RemoveClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task RemoveClaimsAsync(TUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken = default(CancellationToken))
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(claims);
-        foreach (var claim in claims)
+
+        foreach (Claim claim in claims)
         {
-            var matchedClaims = await UserClaims.Where(uc => uc.UserId.Equals(user.Id) && uc.ClaimValue == claim.Value && uc.ClaimType == claim.Type).ToListAsync(cancellationToken);
-            foreach (var c in matchedClaims)
-            {
-                UserClaims.Remove(c);
-            }
+            user.RemoveClaim(claim);
         }
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -382,8 +383,10 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(login);
-        UserLogins.Add(CreateUserLogin(user, login));
-        return Task.FromResult(false);
+
+        user.AddLogin(login);
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -400,11 +403,12 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(user);
-        var entry = await FindUserLoginAsync(user.Id, loginProvider, providerKey, cancellationToken);
-        if (entry != null)
+
+        var mongoUserLogin = await FindUserLoginAsync(user.Id, loginProvider, providerKey, cancellationToken);
+        if (mongoUserLogin is not null)
         {
-            UserLogins.Remove(entry);
-        }
+            user.RemoveLogin(new UserLoginInfo(loginProvider, providerKey, mongoUserLogin.ProviderDisplayName));
+        }        
     }
 
     /// <summary>
@@ -415,7 +419,7 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <returns>
     /// The <see cref="Task"/> for the asynchronous operation, containing a list of <see cref="UserLoginInfo"/> for the specified <paramref name="user"/>, if any.
     /// </returns>
-    public override async Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
+    public override Task<IList<UserLoginInfo>> GetLoginsAsync(TUser user, CancellationToken cancellationToken = default(CancellationToken))
     {
         cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
@@ -423,8 +427,8 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
         var userId = user.Id;
 
         // FIX : MongoDb.EF ne gère pas encore les Selects
-        var logins = await UserLogins.Where(l => l.UserId.Equals(userId)).ToListAsync(cancellationToken);
-        return logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList();
+        IList<UserLoginInfo> logins = user.Logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList();
+        return Task.FromResult(logins);
     }
 
     /// <summary>
@@ -479,14 +483,9 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(claim);
 
-        // TODO : REFACTOR FOR MONGODB
-        var query = from userclaims in UserClaims
-                    join user in Users on userclaims.UserId equals user.Id
-                    where userclaims.ClaimValue == claim.Value
-                    && userclaims.ClaimType == claim.Type
-                    select user;
+        var users = await Users.ToListAsync(cancellationToken);
 
-        return await query.ToListAsync(cancellationToken);
+        return users.Where(x => x.Claims.Any(c => c.ClaimValue == claim.Value && c.ClaimType == claim.Type)).ToList();
     }
 
     /// <summary>
@@ -498,17 +497,27 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// <param name="cancellationToken">The <see cref="CancellationToken"/> used to propagate notifications that the operation should be canceled.</param>
     /// <returns>The user token if it exists.</returns>
     protected override Task<TUserToken?> FindTokenAsync(TUser user, string loginProvider, string name, CancellationToken cancellationToken)
-        => UserTokens.FindAsync(new object[] { user.Id, loginProvider, name }, cancellationToken).AsTask();
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(user);
+
+        var token = user.GetToken(loginProvider, name);
+        return Task.FromResult((TUserToken)token);
+    }
 
     /// <summary>
     /// Add a new user token.
     /// </summary>
     /// <param name="token">The token to be added.</param>
     /// <returns></returns>
-    protected override Task AddUserTokenAsync(TUserToken token)
+    protected override async Task AddUserTokenAsync(TUserToken token)
     {
-        UserTokens.Add(token);
-        return Task.CompletedTask;
+        this.ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(token);
+
+        var user = await FindUserAsync(token.UserId, CancellationToken.None);
+        user.AddToken(token);
     }
 
     /// <summary>
@@ -516,9 +525,12 @@ public class UserOnlyStore<TUser, TContext, TKey, TUserClaim, TUserLogin, TUserT
     /// </summary>
     /// <param name="token">The token to be removed.</param>
     /// <returns></returns>
-    protected override Task RemoveUserTokenAsync(TUserToken token)
+    protected override async Task RemoveUserTokenAsync(TUserToken token)
     {
-        UserTokens.Remove(token);
-        return Task.CompletedTask;
+        this.ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(token);
+
+        var user = await FindUserAsync(token.UserId, CancellationToken.None);
+        user.RemoveToken(token);
     }
 }

@@ -1,18 +1,20 @@
 ﻿using System.Security.Claims;
+using MongoDB.Bson;
 
 namespace Identity.MongoDb.Core.Domain;
 
 public sealed class MongoClaim
 {
+
     /// <summary>
     ///     Gets or sets the claim type for this claim.
     /// </summary>
-    public string ClaimType { get; set; }
+    public string ClaimType { get; private set; }
 
     /// <summary>
     ///     Gets or sets the claim value for this claim.
     /// </summary>
-    public string ClaimValue { get; set; }
+    public string ClaimValue { get; private set; }
 
     /// <summary>
     ///     Constructs a new claim with the type and value.
@@ -23,12 +25,12 @@ public sealed class MongoClaim
         return new Claim(this.ClaimType, this.ClaimValue);
     }
 
-    /// <summary>
-    ///     Initializes by copying ClaimType and ClaimValue from the other claim.
-    /// </summary>
-    /// <param name="other">The claim to initialize from.</param>
-    public void InitializeFromClaim(Claim other)
+    public MongoClaim()
     {
+    }
+
+    public MongoClaim(Claim other):this()
+    {        
         this.ClaimType = other?.Type;
         this.ClaimValue = other?.Value;
     }
